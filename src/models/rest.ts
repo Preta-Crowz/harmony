@@ -1,6 +1,5 @@
 import * as baseEndpoints from '../consts/urlsAndVersions.ts'
 import { Client } from './client.ts'
-import { getBuildInfo } from '../utils/buildInfo.ts'
 import { Collection } from '../utils/collection.ts'
 
 export type RequestMethods =
@@ -171,24 +170,6 @@ export class RESTManager {
       method: method.toUpperCase()
     }
 
-    if (this.client?.bot === false) {
-      // This is a selfbot. Use requests similar to Discord Client
-      data.headers.authorization = this.client.token as string
-      data.headers['accept-language'] = 'en-US'
-      data.headers.accept = '*/*'
-      data.headers['sec-fetch-dest'] = 'empty'
-      data.headers['sec-fetch-mode'] = 'cors'
-      data.headers['sec-fetch-site'] = 'same-origin'
-      data.headers['x-super-properties'] = btoa(
-        JSON.stringify(getBuildInfo(this.client))
-      )
-      delete data.headers['User-Agent']
-      delete data.headers.Authorization
-      headers.credentials = 'include'
-      headers.mode = 'cors'
-      headers.referrerPolicy = 'no-referrer-when-downgrade'
-    }
-
     return data
   }
 
@@ -263,7 +244,8 @@ export class RESTManager {
   private async handleStatusCode(
     response: Response,
     body: any,
-    data: { [key: string]: any }
+    data: { [key: string]: any },
+    reject: CallableFunction
   ): Promise<undefined> {
     const status = response.status
 
@@ -280,18 +262,48 @@ export class RESTManager {
     if (text === 'undefined') text = undefined
 
     if (status === HttpResponseCode.Unauthorized)
-      throw new DiscordAPIError(
-        `Request was not successful (Unauthorized). Invalid Token.\n${text}`
+      reject(
+        new DiscordAPIError(
+          `Request was not successful (Unauthorized). Invalid Token.\n${text}`
+        )
       )
 
     // At this point we know it is error
-    let error = {
+    const error: { [name: string]: any } = {
       url: response.url,
       status,
       method: data.method,
-      body: data.body
+      code: body?.code,
+      message: body?.message,
+      errors: Object.fromEntries(
+        Object.entries(
+          body?.errors as {
+            [name: string]: {
+              _errors: Array<{ code: string; message: string }>
+            }
+          }
+        ).map((entry) => {
+          return [entry[0], entry[1]._errors]
+        })
+      )
     }
-    if (body !== undefined) error = Object.assign(error, body)
+
+    // if (typeof error.errors === 'object') {
+    //   const errors = error.errors as {
+    //     [name: string]: { _errors: Array<{ code: string; message: string }> }
+    //   }
+    //   console.log(`%cREST Error:`, 'color: #F14C39;')
+    //   Object.entries(errors).forEach((entry) => {
+    //     console.log(`  %c${entry[0]}:`, 'color: #12BC79;')
+    //     entry[1]._errors.forEach((e) => {
+    //       console.log(
+    //         `    %c${e.code}: %c${e.message}`,
+    //         'color: skyblue;',
+    //         'color: #CECECE;'
+    //       )
+    //     })
+    //   })
+    // }
 
     if (
       [
@@ -301,14 +313,14 @@ export class RESTManager {
         HttpResponseCode.MethodNotAllowed
       ].includes(status)
     ) {
-      throw new DiscordAPIError(Deno.inspect(error))
+      reject(new DiscordAPIError(Deno.inspect(error)))
     } else if (status === HttpResponseCode.GatewayUnavailable) {
-      throw new DiscordAPIError(Deno.inspect(error))
-    } else throw new DiscordAPIError('Request - Unknown Error')
+      reject(new DiscordAPIError(Deno.inspect(error)))
+    } else reject(new DiscordAPIError('Request - Unknown Error'))
   }
 
   /**
-   * Make a Request to Discord API
+   * Makes a Request to Discord API
    * @param method HTTP Method to use
    * @param url URL of the Request
    * @param body Body to send with Request
@@ -366,7 +378,7 @@ export class RESTManager {
             )
 
           const json: any = await response.json()
-          await this.handleStatusCode(response, json, requestData)
+          await this.handleStatusCode(response, json, requestData, reject)
 
           if (
             json.retry_after !== undefined ||
@@ -410,7 +422,7 @@ export class RESTManager {
     })
   }
 
-  /** Make a GET Request to API */
+  /** Makes a GET Request to API */
   async get(
     url: string,
     body?: unknown,
@@ -421,7 +433,7 @@ export class RESTManager {
     return await this.make('get', url, body, maxRetries, bucket, rawResponse)
   }
 
-  /** Make a POST Request to API */
+  /** Makes a POST Request to API */
   async post(
     url: string,
     body?: unknown,
@@ -432,7 +444,7 @@ export class RESTManager {
     return await this.make('post', url, body, maxRetries, bucket, rawResponse)
   }
 
-  /** Make a DELETE Request to API */
+  /** Makes a DELETE Request to API */
   async delete(
     url: string,
     body?: unknown,
@@ -443,7 +455,7 @@ export class RESTManager {
     return await this.make('delete', url, body, maxRetries, bucket, rawResponse)
   }
 
-  /** Make a PATCH Request to API */
+  /** Makes a PATCH Request to API */
   async patch(
     url: string,
     body?: unknown,
@@ -454,7 +466,7 @@ export class RESTManager {
     return await this.make('patch', url, body, maxRetries, bucket, rawResponse)
   }
 
-  /** Make a PUT Request to API */
+  /** Makes a PUT Request to API */
   async put(
     url: string,
     body?: unknown,

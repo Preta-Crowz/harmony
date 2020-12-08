@@ -24,8 +24,6 @@ export interface ClientOptions {
   forceNewSession?: boolean
   /** Startup presence of client */
   presence?: ClientPresence | ClientActivity | ActivityGame
-  /** Whether it's a bot user or not? Use this if selfbot! */
-  bot?: boolean
   /** Force all requests to Canary API */
   canary?: boolean
   /** Time till which Messages are to be cached, in MS. Default is 3600000 */
@@ -68,8 +66,6 @@ export class Client extends EventEmitter {
   channels: ChannelsManager = new ChannelsManager(this)
   emojis: EmojisManager = new EmojisManager(this)
 
-  /** Whether this client will login as bot user or not */
-  bot: boolean = true
   /** Whether the REST Manager will use Canary API or not */
   canary: boolean = false
   /** Client's presence. Startup one if set before connecting */
@@ -98,7 +94,6 @@ export class Client extends EventEmitter {
         options.presence instanceof ClientPresence
           ? options.presence
           : new ClientPresence(options.presence)
-    if (options.bot === false) this.bot = false
     if (options.canary === true) this.canary = true
     if (options.messageCacheLifetime !== undefined)
       this.messageCacheLifetime = options.messageCacheLifetime
@@ -109,9 +104,9 @@ export class Client extends EventEmitter {
   }
 
   /**
-   * Set Cache Adapter
+   * Sets Cache Adapter
    *
-   * Should NOT set after bot is already logged in or using current cache.
+   * Should NOT be set after bot is already logged in or using current cache.
    * Please look into using `cache` option.
    */
   setAdapter(adapter: ICacheAdapter): Client {
@@ -119,7 +114,7 @@ export class Client extends EventEmitter {
     return this
   }
 
-  /** Change Presence of Client */
+  /** Changes Presence of Client */
   setPresence(presence: ClientPresence | ClientActivity | ActivityGame): void {
     if (presence instanceof ClientPresence) {
       this.presence = presence
@@ -127,7 +122,7 @@ export class Client extends EventEmitter {
     this.gateway?.sendPresence(this.presence.create())
   }
 
-  /** Emit debug event */
+  /** Emits debug event */
   debug(tag: string, msg: string): void {
     this.emit('debug', `[${tag}] ${msg}`)
   }
@@ -136,7 +131,7 @@ export class Client extends EventEmitter {
   // fetchApplication(): Promise<Application>
 
   /**
-   * This function is used for connect to discord.
+   * This function is used for connecting to discord.
    * @param token Your token. This is required.
    * @param intents Gateway intents in array. This is required.
    */
@@ -145,9 +140,14 @@ export class Client extends EventEmitter {
     else if (this.token === undefined && token !== undefined) {
       this.token = token
     } else throw new Error('No Token Provided')
-    if (intents === undefined && this.intents !== undefined)
+    if (intents !== undefined && this.intents !== undefined) {
+      this.debug(
+        'client',
+        'Intents were set in both client and connect function. Using the one in the connect function...'
+      )
+    } else if (intents === undefined && this.intents !== undefined) {
       intents = this.intents
-    else if (intents !== undefined && this.intents === undefined) {
+    } else if (intents !== undefined && this.intents === undefined) {
       this.intents = intents
     } else throw new Error('No Gateway Intents were provided')
     this.gateway = new Gateway(this, token, intents)

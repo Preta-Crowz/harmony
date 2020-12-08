@@ -45,7 +45,7 @@ export class GuildBans {
   }
 
   /**
-   * Get all bans in the Guild.
+   * Gets all bans in the Guild.
    */
   async all(): Promise<GuildBan[]> {
     const res = await this.client.rest.get(GUILD_BANS(this.guild.id))
@@ -59,7 +59,7 @@ export class GuildBans {
   }
 
   /**
-   * Get ban details of a User if any.
+   * Gets ban details of a User if any.
    * @param user User to get ban of, ID or User object.
    */
   async get(user: string | User): Promise<GuildBan> {
@@ -71,7 +71,7 @@ export class GuildBans {
   }
 
   /**
-   * Ban a User.
+   * Bans a User.
    * @param user User to ban, ID or User object.
    * @param reason Reason for the Ban.
    * @param deleteMessagesDays Delete Old Messages? If yes, how much days.
@@ -91,12 +91,11 @@ export class GuildBans {
       null,
       true
     )
-
-    if (res.status !== 204) throw new Error('Failed to Add Guild Ban')
+    if (res.response.status !== 204) throw new Error('Failed to Add Guild Ban')
   }
 
   /**
-   * Unban (remove ban from) a User.
+   * Unbans (removes ban from) a User.
    * @param user User to unban, ID or User object.
    */
   async remove(user: string | User): Promise<boolean> {
@@ -108,7 +107,7 @@ export class GuildBans {
       true
     )
 
-    if (res.status !== 204) return false
+    if (res.response.status !== 204) return false
     else return true
   }
 }
@@ -272,7 +271,7 @@ export class Guild extends Base {
   }
 
   /**
-   * Get Everyone role of the Guild
+   * Gets Everyone role of the Guild
    */
   async getEveryoneRole(): Promise<Role> {
     // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-assertion
@@ -280,7 +279,7 @@ export class Guild extends Base {
   }
 
   /**
-   * Get current client's member in the Guild
+   * Gets current client's member in the Guild
    */
   async me(): Promise<Member> {
     const get = await this.members.get(this.client.user?.id as string)
@@ -289,7 +288,7 @@ export class Guild extends Base {
   }
 
   /**
-   * Fetch Guild's Integrations (Webhooks, Bots, etc.)
+   * Fetches Guild's Integrations (Webhooks, Bots, etc.)
    */
   async fetchIntegrations(): Promise<GuildIntegration[]> {
     const raw = (await this.client.rest.get(
@@ -299,7 +298,7 @@ export class Guild extends Base {
   }
 
   /**
-   * Chunk the Guild Members, i.e. cache them.
+   * Chunks the Guild Members, i.e. cache them.
    * @param options Options regarding the Members Request
    * @param wait Whether to wait for all Members to come before resolving Promise or not.
    * @param timeout Configurable timeout to cancel the wait to safely remove listener.
@@ -345,7 +344,7 @@ export class GuildIntegration extends Base {
   expireGracePeriod?: number
   user?: User
   account: IntegrationAccountPayload
-  syncedAt?: string // Actually a ISO Timestamp, but we parse in constructor'
+  syncedAt?: string // Actually a ISO Timestamp, but we parse in constructor
   subscriberCount?: number
   revoked?: boolean
   application?: Application
